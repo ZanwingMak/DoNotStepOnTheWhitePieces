@@ -1,0 +1,356 @@
+<html>
+    <head>
+    <title>别踩白块!</title>
+    <meta name="viewport" content="user-scalable=no, width=device-width, initial-scale=1.0"/>
+    <meta charset="UTF-8"/>
+        <style>
+            #main{
+                width: 400px;
+                height: 400px;
+                background: white;
+                border: 2px solid orange;
+                margin: 0 auto;
+                position: relative;
+                overflow: hidden;
+
+            }
+            #container{
+                width: 100%;
+                height: 400px;
+                position: relative;
+                top: -100px;
+            }
+            .row{
+                width: 100%;
+                height: 100px;
+            }
+            .cell{
+                width: 100px;
+                height: 100px;
+                float: left;
+            }
+            .black{
+                background: black;
+            }
+        </style>
+    </head>
+    <body>
+    <h1 id="score">得分：0</h1>
+    <button id="two">菜鸟</button>
+    <button id="four">初级1</button>
+    <button id="five">初级2</button>
+    <button id="ten">中级</button>
+    <button id="twenty">高级</button>
+    <button id="stop">停止游戏</button>
+    <button id="replay">重新开始</button>
+    <h1 id="exaggerate">请选戏难度</h1>
+    <div id="main" name="游戏页面">
+        <div id="container" name="游戏区域/容器"><!--此处如果换行的话会多一个节点，因为在DOM里面，一切皆为节点--></div>
+    </div>
+    <script>
+
+        var state = 0; //0：初始化 1：进行中 2：失败
+        var clock = null;//定时器操作句柄
+        var _init = null;
+        var _start = null;
+        var v = null;
+
+        /*
+        初始化
+        */
+        function init(){
+            state = 0;
+            for(var i=0;i<4;i++){//预留空一行让玩家能够反应,并且留一行在最顶部等着(坐标为负数)。
+                create_row();
+            }
+            document.getElementById('main').onclick = function (ev) {
+                judge(ev);
+            }
+
+        }
+
+        /*
+        判断
+        */
+        function judge(ev){
+            if(state == 2){
+                alert('你已经输啦,重新开始吧~');
+                return;
+            }
+            if(ev.target.className.indexOf('black') == -1){
+                //如果点了白色
+                fail();
+            }else{
+                ev.target.className = 'cell';
+                ev.target.parentNode.pass = 1;
+                score();
+            }
+        }
+
+        /*
+        启动，定时器
+        */
+        function start(){
+            var func = 'move('+ v +')';
+            clock = window.setInterval(func,30);
+            state = 1;
+        }
+
+        /*
+        清空
+        */
+        function clear(){
+            clearInterval(clock);
+            clearTimeout(_init);
+            clearTimeout(_start);
+            var container = document.getElementById('container');
+            var score = document.getElementById('score');
+            score.innerHTML = '得分：0';
+            document.getElementById('exaggerate').innerHTML = '';
+            clearInterval(clock);
+            while(container.hasChildNodes()) //当container下还存在子节点时 循环继续
+            {
+                container.removeChild(container.firstChild);
+            }
+            container.style.top = '-100px';
+        }
+
+        /*
+        记分
+        */
+        function score(){
+            var score = document.getElementById('score');
+            var num = parseInt((score.innerHTML).substring(3)) + 1;
+            score.innerHTML = '得分：' + num;
+        }
+
+        /*
+        获取top值
+        */
+        function get_top(){
+            var container = document.getElementById('container');
+            var top = parseInt(window.getComputedStyle(container,null)['top']);
+            return top;
+        }
+
+        /*
+        让div移动
+        */
+        function move(){
+            var container = document.getElementById('container');
+            var top = get_top();
+            top += v;
+            container.style.top = top + 'px';
+            if(top == 0){ //最上面准备出现的那一行的坐标是负数的
+                //当这一行出现了，要补上新的一行
+                create_row();
+                container.style.top = '-100px';
+                remove_last_row();
+            }else if(top == (-100+v)){
+                var rows = container.children;
+                var rows_length = rows.length;
+                if( (rows_length == 5) && (rows[rows_length-1].pass !== 1) && rows[rows_length-1].tagName == 'DIV' ){
+                    //因为有个倒计时标签，所以一开始虽然有5行（如果没有倒计时是4行），但是最后一行是h1标签，所以在此要判断一下
+                    //随后游戏开始也是有5行，但这时标签已经是DIV了
+                    fail();
+                }
+            }
+
+        }
+
+        /*
+        倒数
+        */
+        function count_down(time){
+            //var main = document.getElementById('main');
+            //var main_x = main.offsetLeft;
+            //var main_y = main.offsetTop;
+            //var main_width = main.clientWidth;
+            //var main_height = main.clientHeight;
+            //var time_x = main_x + main_width/2;
+            //var time_y = main_y + main_height/2;
+            //var pos = time_x+'px '+time_y+'px';
+            //console.log(pos);
+            var h1 = document.createElement('h1');
+            h1.style.margin = '200px 165px';
+            h1.style.fontFamily = '黑体';
+            h1.style.fontSize = '150px';
+            var container = document.getElementById('container');
+            container.appendChild(h1);
+            var count_down_time = window.setInterval(function change_time(){
+                h1.innerHTML = time;
+                time  = time - 1;
+                if(time < 0){
+                    clearInterval(count_down_time);
+                }
+            },1000)
+        }
+
+        /*
+         创建div.row
+         */
+        function create_row(){
+            var container = document.getElementById('container');
+            var row = create_div('row');
+            var classnames = create_random_classname_arr();
+            for(var i=0;i<4;i++){
+                row.appendChild(create_div(classnames[i]));
+            }
+            if(container.firstChild == null){
+                container.appendChild(row);
+            }else{
+                container.insertBefore(row,container.firstChild);
+            }
+        }
+
+        /*
+        删除最后一行
+        */
+        function remove_last_row(){
+            var container = document.getElementById('container');
+            container.removeChild(container.lastChild);
+        }
+
+        /*
+         创建div，classname是它的类名
+         */
+        function create_div(classname){
+            var div = document.createElement('div');
+            div.className = classname;
+            return div;
+        }
+
+        /*
+        返回一个数组，随机其中1个单元的值为'cell black'，其余3个为'cell'
+         */
+        function create_random_classname_arr(){
+            var arr = ['cell','cell','cell','cell'];
+            var i = parseInt(Math.random()*4);//生成0~4之间的随机数，我们需要取整，随机生成0,1,2,3的整数
+            arr[i] = 'cell black';
+            return arr;
+        }
+
+        /*
+        输了
+        */
+        function fail(){
+            clearInterval(clock);
+            state = 2;
+            alert('你输啦,重新开始吧~');
+        }
+
+        /*
+        显示难度
+        */
+        function show_exaggerate(){
+            switch(v){
+                case 2:
+                    document.getElementById('exaggerate').innerHTML = '当前难度：菜鸟';
+                    break;
+                case 4:
+                    document.getElementById('exaggerate').innerHTML = '当前难度：初级1';
+                    break;
+                case 5:
+                    document.getElementById('exaggerate').innerHTML = '当前难度：初级2';
+                    break;
+                case 10:
+                    document.getElementById('exaggerate').innerHTML = '当前难度：中级';
+                    break;
+                case 20:
+                    document.getElementById('exaggerate').innerHTML = '当前难度：高级';
+                    break;
+                default:
+                    document.getElementById('exaggerate').innerHTML = '请选择难度';
+                    break;
+            }
+        }
+
+        /*
+        选择难度
+         */
+        document.getElementById('two').onclick = function(){
+            clear();
+            v = 2;
+            show_exaggerate();
+            _init = window.setTimeout('init()',4000);
+            _start = window.setTimeout('start()',4000);
+            count_down(3);
+        }
+        document.getElementById('four').onclick = function(){
+            clear();
+            v = 4;
+            show_exaggerate();
+            _init = window.setTimeout('init()',4000);
+            _start = window.setTimeout('start()',4000);
+            count_down(3);
+        }
+        document.getElementById('five').onclick = function(){
+            clear();
+            v = 5;
+            show_exaggerate();
+            _init = window.setTimeout('init()',4000);
+            _start = window.setTimeout('start()',4000);
+            count_down(3);
+        }
+        document.getElementById('ten').onclick = function(){
+            clear();
+            v = 10;
+            show_exaggerate();
+            _init = window.setTimeout('init()',4000);
+            _start = window.setTimeout('start()',4000);
+            count_down(3);
+        }
+        document.getElementById('twenty').onclick = function(){
+            clear();
+            v = 20;
+            show_exaggerate();
+            _init = window.setTimeout('init()',4000);
+            _start = window.setTimeout('start()',4000);
+            count_down(3);
+        }
+        document.getElementById('stop').onclick = function(){
+            clear();
+            show_exaggerate();
+        }
+        document.getElementById('replay').onclick = function(){
+            clear();
+            show_exaggerate();
+            _init = window.setTimeout('init()',4000);
+            _start = window.setTimeout('start()',4000);
+            count_down(3);
+        }
+
+    </script>
+
+    <!--假设-->
+    <!--<div id="main" name="游戏页面">-->
+        <!--<div id="container" name="游戏区域/容器">-->
+            <!--<div class="row" name="每一整行">-->
+            <!--<div class="cell black" name="每一小格"></div>-->
+            <!--<div class="cell" name="每一小格"></div>-->
+            <!--<div class="cell" name="每一小格"></div>-->
+            <!--<div class="cell" name="每一小格"></div>-->
+            <!--</div>-->
+            <!--<div class="row" name="每一整行">-->
+            <!--<div class="cell" name="每一小格"></div>-->
+            <!--<div class="cell black" name="每一小格"></div>-->
+            <!--<div class="cell" name="每一小格"></div>-->
+            <!--<div class="cell" name="每一小格"></div>-->
+            <!--</div>-->
+            <!--<div class="row" name="每一整行">-->
+            <!--<div class="cell black" name="每一小格"></div>-->
+            <!--<div class="cell" name="每一小格"></div>-->
+            <!--<div class="cell" name="每一小格"></div>-->
+            <!--<div class="cell" name="每一小格"></div>-->
+            <!--</div>-->
+            <!--<div class="row" name="每一整行">-->
+            <!--<div class="cell" name="每一小格"></div>-->
+            <!--<div class="cell" name="每一小格"></div>-->
+            <!--<div class="cell" name="每一小格"></div>-->
+            <!--<div class="cell black" name="每一小格"></div>-->
+            <!--</div>-->
+        <!--</div>-->
+    <!--</div>-->
+
+    </body>
+</html>
